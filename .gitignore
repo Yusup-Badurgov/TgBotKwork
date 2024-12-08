@@ -1,0 +1,25 @@
+.idea/
+*.iml
+
+# Базы данных
+*.db
+
+# Python-specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs
+*.log
+
+# Конфигурационные файлы (по необходимости)
+*.env
