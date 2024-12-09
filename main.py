@@ -1,9 +1,9 @@
 import sqlite3
 import telebot
 from telebot import types
-
 import logging
-
+import gspread
+from google.oauth2.service_account import Credentials
 
 # Настройка логирования
 logging.basicConfig(
@@ -14,6 +14,23 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Данные для Google Sheets
+CREDENTIALS_FILE = "quantum-keep-428613-c3-32dc3787140b.json"  # ваш файл с ключами сервисного аккаунта
+SPREADSHEET_ID_1 = "1uaHzlpt6A7V3vhJXoa1_EfgSM9CYiN8ViITuAwTyYIk"
+SPREADSHEET_ID_2 = "11jihjH1lIJVd7HaHWHjFFzu-jZEB66CYIuDOfJxdcT0"
+
+
+# ==== Авторизация GSpread ====
+scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=scopes)
+gc = gspread.authorize(creds)
+
+# Открываем таблицы (листы по умолчанию)
+sh1 = gc.open_by_key(SPREADSHEET_ID_1)
+worksheet1 = sh1.sheet1  # Лист по умолчанию для таблицы 1
+
+sh2 = gc.open_by_key(SPREADSHEET_ID_2)
+worksheet2 = sh2.sheet1  # Лист по умолчанию для таблицы 2
 
 # ==== Настройки ====
 TOKEN = "7245958682:AAEczgAtvDYOcvXFtQB1gbyxLdvsVUHyb7s"  # токен бота
@@ -44,6 +61,51 @@ def add_user(user_id, username, first_name, last_name):
     cursor.execute("INSERT OR IGNORE INTO users (user_id, username, first_name, last_name) VALUES (?, ?, ?, ?)",
                    (user_id, username, first_name, last_name))
     conn.commit()
+
+    # После добавления в БД получим его запись, чтобы узнать is_privileged (по умолчанию 0)
+    cursor.execute("SELECT user_id, username, first_name, last_name, is_privileged FROM users WHERE user_id=?", (user_id,))
+    user = cursor.fetchone()
+    if user:
+        # Записываем в Google Sheets
+        # user: (user_id, username, first_name, last_name, is_privileged)
+        uid, uname, fname, lname, priv = user
+
+        # Таблица 1: все поля
+        # Предполагается, что в таблице 1 столбцы: user_id | username | first_name | last_name | is_privileged
+        worksheet1.append_row([uid, uname if uname else '', fname if fname else '', lname if lname else '', priv])
+
+        # Таблица 2: только user_id, first_name, last_name
+        # Предполагается, что в таблице 2 столбцы: user_id | first_name | last_name
+        worksheet2.append_row([uid, fname if fname else '', lname if lname else ''])
+
+        # Отправляем уведомление сотрудникам
+        notify_staff_about_new_user(uid, uname, fname, lname)
+
+
+def notify_staff_about_new_user(user_id, username, first_name, last_name):
+    # Получаем список сотрудников
+    staff_members = list_staff()
+    # staff_members: [(user_id, username, first_name, last_name), ...]
+
+    # Формируем сообщение
+    display_username = f"@{username}" if username else ''
+    display_name = f"{first_name or ''} {last_name or ''}".strip()
+    text = (
+        "<b>Новый пользователь!</b>\n\n"
+        f"ID: {user_id}\n"
+        f"Username: {display_username or 'нет'}\n"
+        f"Имя: {first_name or 'нет'}\n"
+        f"Фамилия: {last_name or 'нет'}\n\n"
+        "Пользователь был добавлен в БД и Google Sheets."
+    )
+
+    for s in staff_members:
+        s_uid, s_uname, s_fname, s_lname = s
+        try:
+            bot.send_message(s_uid, text)
+            logger.info(f"Отправлено уведомление сотруднику: user_id={s_uid}")
+        except Exception as e:
+            logger.error(f"Не удалось отправить сообщение сотруднику user_id={s_uid}: {e}")
 
 def get_users_count():
     logger.info("Запрос количества пользователей в БД")
@@ -133,7 +195,8 @@ def handle_chat_join_request(chat_join_request):
 def start_cmd(message):
     logger.info(f"Команда /start от пользователя: user_id={message.from_user.id}, username={message.from_user.username}")
     text = ("Привет! 👋\n\n"
-            "Это служебный бот, который помогает администрировать закрытый канал. Я автоматически принимаю заявки на вступление от пользователей, сохраняю их данные в базу и позволяю просматривать список участников. "
+            "Это служебный бот, который помогает администрировать закрытый канал. Я автоматически принимаю заявки на вступление от пользователей, сохраняю их данные в базу,"
+            "добавляю запись в гугл таблицы, а также отправляю уведомление всем сотрудникам о новом пользователе и позволяю просматривать список участников. "
             "Кроме того, для уполномоченных лиц доступно управление правами пользователей.\n\n"
             "Чтобы узнать о моих возможностях, используй команду /help.")
     bot.reply_to(message, text)
