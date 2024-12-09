@@ -3,6 +3,7 @@
 *.vcs.xml
 # Базы данных
 *.db
+quantum-keep-428613-c3-32dc3787140b.json
 
 # Python-specific
 __pycache__/
