@@ -39,20 +39,6 @@ def notify_staff_about_new_user(user_id, username, first_name, last_name):
         except Exception as e:
             logger.error(f"Не удалось отправить сообщение сотруднику user_id={s_uid}: {e}")
 
-    # Уведомляем директора
-    from db import cursor
-    cursor.execute("SELECT user_id FROM users WHERE username=?", (DIRECTOR_USERNAME,))
-    director = cursor.fetchone()
-    if director:
-        director_uid = director[0]
-        try:
-            bot.send_message(director_uid, text)
-            logger.info(f"Отправлено уведомление директору: user_id={director_uid}")
-        except Exception as e:
-            logger.error(f"Не удалось отправить сообщение директору user_id={director_uid}: {e}")
-    else:
-        logger.warning(f"Директор с username={DIRECTOR_USERNAME} не найден в БД, сообщение не отправлено.")
-
 
 def add_user(user_id, username, first_name, last_name):
     add_user_to_db(user_id, username, first_name, last_name)

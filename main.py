@@ -39,9 +39,9 @@ def help_cmd(message):
     logger.info(f"Команда /help от пользователя: user_id={message.from_user.id}, username={message.from_user.username}")
     text = (
         "<b>Доступные команды:</b>\n\n"
-        "/start - Приветственное сообщение.\n"
+        "/start - Старт / Рестарт\n"
         "/help - Список команд и функционала.\n\n"
-        "<b>Для директора и привилегированных пользователей:</b>\n"
+        "<b>Для директора и сотрудников:</b>\n"
         "/list_users [номер страницы] - Просмотреть список пользователей по страницам (по 10 записей на странице).\n"
         "/search_users &lt;запрос&gt; - Поиск пользователя по username, имени, фамилии или ID.\n"
         "/list_staff - Показать список сотрудников (пользователей с правами).\n\n"
@@ -83,7 +83,7 @@ def callback_users_page(call):
         return
     page = int(call.data.split(':')[1])
     logger.info(f"Пользователь переключился на страницу: {page}")
-    # Редактируем текущее сообщение, а не создаём новое
+
     send_users_page(call.message.chat.id, page=page, message_id=call.message.message_id)
     bot.answer_callback_query(call.id)
 

@@ -2,7 +2,7 @@
 # Здесь хранятся все настройки: токены, пароли, пути к файлам
 
 TOKEN = "7245958682:AAEczgAtvDYOcvXFtQB1gbyxLdvsVUHyb7s"  # токен бота
-DIRECTOR_USERNAME = "yubadurgov"  # username директора без @ из телеграмм
+DIRECTOR_USERNAME = "IvanBusinessLife"  # username директора без @ из телеграмм
 CHANNEL_ID = -1002250302799 # у каждого телеграмм канала есть свой id
 
 CREDENTIALS_FILE = "quantum-keep-428613-c3-32dc3787140b.json"
