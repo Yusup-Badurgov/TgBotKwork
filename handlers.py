@@ -1,11 +1,13 @@
 # handlers.py
 import logging
+import math
+
 import telebot
 from telebot import types
 
-from config import TOKEN, DIRECTOR_USERNAME
+from config import TOKEN
 from db import (add_user_to_db, get_user_by_id, get_users_count, get_users_page,
-                search_users, set_privilege, list_staff, user_has_privileges, is_director)
+                search_users, list_staff)
 from google_sheets import add_user_to_sheets
 
 logger = logging.getLogger(__name__)
@@ -64,13 +66,13 @@ def send_users_page(chat_id, page=1, per_page=10, message_id=None):
             bot.send_message(chat_id, f"Нет пользователей на странице {page}.")
         return
 
-    text = f"Страница {page} (Показаны пользователи {len(users)} из {total_users}):\n"
+    text = f"📄 <b>Список пользователей</b> (Страница {page} из {math.ceil(total_users / per_page)}):\n\n"
     logger.info(f"На странице {page} найдено {len(users)} пользователей из {total_users}")
     keyboard = types.InlineKeyboardMarkup()
 
     for u in users:
         uid, uname, fname, lname, priv = u
-        display_name = f"@{uname}" if uname else f"{fname or ''} {lname or ''}".strip()
+        display_name = f"{fname or ''} {lname or ''}".strip()
         if not display_name:
             display_name = str(uid)
         logger.debug(f"Добавление пользователя в список: user_id={uid}, display_name={display_name}")
@@ -87,10 +89,9 @@ def send_users_page(chat_id, page=1, per_page=10, message_id=None):
     if buttons:
         keyboard.add(*buttons)
 
-    # Проверяем, изменилось ли содержимое
     if message_id is not None:
         try:
-            bot.edit_message_text(text, chat_id, message_id, reply_markup=keyboard)
+            bot.edit_message_text(text, chat_id, message_id, reply_markup=keyboard, parse_mode='HTML')
         except telebot.apihelper.ApiTelegramException as e:
             if "message is not modified" in str(e):
                 logger.warning(
@@ -98,7 +99,7 @@ def send_users_page(chat_id, page=1, per_page=10, message_id=None):
             else:
                 logger.error(f"Ошибка при редактировании сообщения: {e}")
     else:
-        bot.send_message(chat_id, text, reply_markup=keyboard)
+        bot.send_message(chat_id, text, reply_markup=keyboard, parse_mode='HTML')
         logger.info(f"Сообщение отправлено: page={page}")
 
 
@@ -108,22 +109,22 @@ def send_search_page(chat_id, query, page=1, per_page=10, message_id=None):
 
     if total == 0:
         if message_id is not None:
-            bot.edit_message_text("Ничего не найдено.", chat_id, message_id)
+            bot.edit_message_text("❌ Ничего не найдено.", chat_id, message_id)
         else:
-            bot.send_message(chat_id, "Ничего не найдено.")
+            bot.send_message(chat_id, "❌ Ничего не найдено.")
         return
 
     start_idx = (page - 1) * per_page
     end_idx = start_idx + per_page
     page_results = results[start_idx:end_idx]
 
-    text = f"Результаты поиска по запросу: {query}\nСтраница {page} (Показано {len(page_results)} из {total})\n"
+    text = f"🔍 <b>Результаты поиска</b> по запросу: <i>{query}</i>\nСтраница {page} из {math.ceil(total / per_page)} (Показано {len(page_results)} из {total})\n\n"
     keyboard = types.InlineKeyboardMarkup()
     enc_query = query.replace(' ', '%20')
 
     for u in page_results:
         uid, uname, fname, lname, priv = u
-        display_name = f"@{uname}" if uname else f"{fname or ''} {lname or ''}".strip()
+        display_name = f"{fname or ''} {lname or ''}".strip()
         if not display_name:
             display_name = str(uid)
         keyboard.add(
@@ -142,7 +143,15 @@ def send_search_page(chat_id, query, page=1, per_page=10, message_id=None):
     if buttons:
         keyboard.add(*buttons)
 
+    # Добавляем HTML-разметку
     if message_id is not None:
-        bot.edit_message_text(text, chat_id, message_id, reply_markup=keyboard)
+        try:
+            bot.edit_message_text(text, chat_id, message_id, reply_markup=keyboard, parse_mode='HTML')
+        except telebot.apihelper.ApiTelegramException as e:
+            if "message is not modified" in str(e):
+                logger.warning(
+                    f"Попытка отредактировать сообщение без изменений: chat_id={chat_id}, message_id={message_id}")
+            else:
+                logger.error(f"Ошибка при редактировании сообщения: {e}")
     else:
-        bot.send_message(chat_id, text, reply_markup=keyboard)
+        bot.send_message(chat_id, text, reply_markup=keyboard, parse_mode='HTML')

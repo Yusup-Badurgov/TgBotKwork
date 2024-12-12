@@ -1,6 +1,6 @@
 import sqlite3
 
-# Создание соединения с SQLite и базы данных
+
 conn = sqlite3.connect('users.db')
 cursor = conn.cursor()
 
@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
 ''')
 
 # Данные пользователей
+# По необходимости можно задампить пользоваетей в БД для теста
 users_data = [
     (7321932241, None, 'Yahaya', 'Isyaku'),
 ]
@@ -25,8 +26,8 @@ INSERT OR IGNORE INTO users (user_id, username, first_name, last_name)
 VALUES (?, ?, ?, ?)
 ''', users_data)
 
-# Сохранение изменений и закрытие соединения
+
 conn.commit()
 conn.close()
 
-print("Данные успешно добавлены в базу данных SQLite!")
+print("Данные успешно добавлены в базу данных")
